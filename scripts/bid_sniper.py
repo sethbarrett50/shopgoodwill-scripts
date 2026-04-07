@@ -325,7 +325,6 @@ class BidSniper:
         # if we want to use the friend_list feature,
         # we must get the highest bidder before placing a bid
         if self.config.get("friend_list", list()):
-
             # attempt to get item info, but continue to place bid if we can't
             try:
                 item_info = self.shopgoodwill_client.get_item_info(item_id)
