@@ -2,11 +2,13 @@ import base64
 import datetime
 import re
 import urllib.parse
+
 from copy import deepcopy
 from typing import Callable
 from zoneinfo import ZoneInfo
 
 import requests
+
 from Cryptodome.Cipher import AES
 from Cryptodome.Util.Padding import pad
 from requests.cookies import RequestsCookieJar
@@ -15,10 +17,8 @@ from requests.models import PreparedRequest, Response
 
 # TODO add pagination
 
-_SHIPPING_COST_PATTERN = re.compile(
-    r"Shipping: <span id='shipping-span'>\$(\d+\.\d+) \(.*\)<\/span>"
-)
-_SGW_BUYERAPI_DOMAIN = "buyerapi.shopgoodwill.com"
+_SHIPPING_COST_PATTERN = re.compile(r"Shipping: <span id='shipping-span'>\$(\d+\.\d+) \(.*\)<\/span>")
+_SGW_BUYERAPI_DOMAIN = 'buyerapi.shopgoodwill.com'
 
 
 class IgnoreBuyerApiCookieJar(RequestsCookieJar):
@@ -31,15 +31,15 @@ class IgnoreBuyerApiCookieJar(RequestsCookieJar):
 
 
 class Shopgoodwill:
-    LOGIN_PAGE_URL = "https://shopgoodwill.com/signin"
-    API_ROOT = "https://buyerapi.shopgoodwill.com/api"
+    LOGIN_PAGE_URL = 'https://shopgoodwill.com/signin'
+    API_ROOT = 'https://buyerapi.shopgoodwill.com/api'
     ENCRYPTION_INFO = {
-        "key": b"6696D2E6F042FEC4D6E3F32AD541143B",
-        "iv": b"0000000000000000",  # You love to see it
-        "block_size": 16,
+        'key': b'6696D2E6F042FEC4D6E3F32AD541143B',
+        'iv': b'0000000000000000',  # You love to see it
+        'block_size': 16,
     }
     FAVORITES_MAX_NOTE_LENGTH = 256
-    INVALID_AUTH_MESSAGE = "The username or password are incorrect"
+    INVALID_AUTH_MESSAGE = 'The username or password are incorrect'
 
     def shopgoodwill_err_hook(self, res: Response, *args, **kwargs) -> None:
         res.raise_for_status()
@@ -71,36 +71,29 @@ class Shopgoodwill:
 
         # SGW doesn't take kindly to the default requests user-agent
         self.shopgoodwill_session.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0"
+            'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0'
         }
-        self.shopgoodwill_session.hooks["response"] = self.shopgoodwill_err_hook
+        self.shopgoodwill_session.hooks['response'] = self.shopgoodwill_err_hook
         self.logged_in = False
 
         if auth_info:
             # check if auth token exists, and if it works
-            access_token = auth_info.get("access_token", None)
+            access_token = auth_info.get('access_token', None)
             if access_token and self.access_token_is_valid(access_token):
-                self.shopgoodwill_session.headers["Authorization"] = (
-                    f"Bearer {access_token}"
-                )
+                self.shopgoodwill_session.headers['Authorization'] = f'Bearer {access_token}'
 
             else:
-                if (
-                    "encrypted_username" in auth_info
-                    and "encrypted_password" in auth_info
-                ):
-                    self.login(
-                        auth_info["encrypted_username"], auth_info["encrypted_password"]
-                    )
+                if 'encrypted_username' in auth_info and 'encrypted_password' in auth_info:
+                    self.login(auth_info['encrypted_username'], auth_info['encrypted_password'])
 
-                elif "username" in auth_info and "password" in auth_info:
+                elif 'username' in auth_info and 'password' in auth_info:
                     self.login(
-                        self._encrypt_login_value(auth_info["username"]),
-                        self._encrypt_login_value(auth_info["password"]),
+                        self._encrypt_login_value(auth_info['username']),
+                        self._encrypt_login_value(auth_info['password']),
                     )
 
                 else:
-                    raise Exception("Invalid auth_info provided!")
+                    raise Exception('Invalid auth_info provided!')
 
             self.logged_in = True
 
@@ -119,13 +112,14 @@ class Shopgoodwill:
         # if there are any milliseconds in this timestamp,
         # truncate it
 
-        if "." in sgw_timestamp:
-            sgw_timestamp = sgw_timestamp[: sgw_timestamp.find(".")]
+        if '.' in sgw_timestamp:
+            sgw_timestamp = sgw_timestamp[: sgw_timestamp.find('.')]
 
         return (
-            datetime.datetime.fromisoformat(sgw_timestamp)
-            .replace(tzinfo=ZoneInfo("America/Los_Angeles"))
-            .astimezone(ZoneInfo("Etc/UTC"))
+            datetime.datetime
+            .fromisoformat(sgw_timestamp)
+            .replace(tzinfo=ZoneInfo('America/Los_Angeles'))
+            .astimezone(ZoneInfo('Etc/UTC'))
         )
 
     def _encrypt_login_value(self, plaintext: str) -> str:
@@ -141,11 +135,11 @@ class Shopgoodwill:
         :rtype: str
         """
 
-        padded = pad(plaintext.encode(), Shopgoodwill.ENCRYPTION_INFO["block_size"])
+        padded = pad(plaintext.encode(), Shopgoodwill.ENCRYPTION_INFO['block_size'])
         cipher = AES.new(
-            Shopgoodwill.ENCRYPTION_INFO["key"],
+            Shopgoodwill.ENCRYPTION_INFO['key'],
             AES.MODE_CBC,
-            Shopgoodwill.ENCRYPTION_INFO["iv"],
+            Shopgoodwill.ENCRYPTION_INFO['iv'],
         )
         ciphertext = cipher.encrypt(padded)
         return urllib.parse.quote(base64.b64encode(ciphertext))
@@ -161,27 +155,25 @@ class Shopgoodwill:
 
         # temporarily set access token and "logged_in" status to test it
         self.logged_in = True
-        self.shopgoodwill_session.headers["Authorization"] = f"Bearer {access_token}"
+        self.shopgoodwill_session.headers['Authorization'] = f'Bearer {access_token}'
 
         try:
-            _res = self.shopgoodwill_session.post(
-                Shopgoodwill.API_ROOT + "/SaveSearches/GetSaveSearches"
-            )
+            _res = self.shopgoodwill_session.post(Shopgoodwill.API_ROOT + '/SaveSearches/GetSaveSearches')
 
         except HTTPError as he:
             if he.response.status_code == 401:
                 self.logged_in = False
-                del self.shopgoodwill_session.headers["Authorization"]
+                del self.shopgoodwill_session.headers['Authorization']
 
                 return False
 
             else:
                 self.logged_in = False
-                del self.shopgoodwill_session.headers["Authorization"]
+                del self.shopgoodwill_session.headers['Authorization']
                 raise he
 
         self.logged_in = False
-        del self.shopgoodwill_session.headers["Authorization"]
+        del self.shopgoodwill_session.headers['Authorization']
         return True
 
     def requires_auth(func: Callable | None = None):  # type: ignore
@@ -192,9 +184,9 @@ class Shopgoodwill:
 
         def inner(self, *args, **kwargs):
             if not self.logged_in:
-                raise Exception("This function requires login to Shopgoodwill")
+                raise Exception('This function requires login to Shopgoodwill')
             if func is None:
-                raise Exception("Bruh")
+                raise Exception('Bruh')
             return func(self, *args, **kwargs)
 
         return inner
@@ -203,46 +195,40 @@ class Shopgoodwill:
         # I don't know how they set clientIpAddress or appVersion,
         # I just nabbed these from my browsers' requests
         login_params = {
-            "browser": "firefox",
-            "remember": False,
-            "clientIpAddress": "0.0.0.4",
-            "appVersion": "00099a1be3bb023ff17d",
-            "username": username,
-            "password": password,
+            'browser': 'firefox',
+            'remember': False,
+            'clientIpAddress': '0.0.0.4',
+            'appVersion': '00099a1be3bb023ff17d',
+            'username': username,
+            'password': password,
         }
 
         # Temporarily drop the requests hook
         # so we can add the set-cookies from this HTML page
-        self.shopgoodwill_session.hooks["response"] = None
+        self.shopgoodwill_session.hooks['response'] = None
 
         # TODO we should still check for exceptions here
         self.shopgoodwill_session.get(Shopgoodwill.LOGIN_PAGE_URL)
 
-        self.shopgoodwill_session.hooks["response"] = self.shopgoodwill_err_hook
+        self.shopgoodwill_session.hooks['response'] = self.shopgoodwill_err_hook
 
-        res_json = self.shopgoodwill_session.post(
-            Shopgoodwill.API_ROOT + "/SignIn/Login", json=login_params
-        ).json()
+        res_json = self.shopgoodwill_session.post(Shopgoodwill.API_ROOT + '/SignIn/Login', json=login_params).json()
 
-        if res_json["message"] == Shopgoodwill.INVALID_AUTH_MESSAGE:
-            raise Exception("Invalid credentials")
+        if res_json['message'] == Shopgoodwill.INVALID_AUTH_MESSAGE:
+            raise Exception('Invalid credentials')
 
-        self.shopgoodwill_session.headers["Authorization"] = (
-            f"Bearer {res_json['accessToken']}"
-        )
+        self.shopgoodwill_session.headers['Authorization'] = f'Bearer {res_json["accessToken"]}'
         # TODO deal with refresh token
 
         return True
 
     @requires_auth
     def get_saved_searches(self):
-        res = self.shopgoodwill_session.post(
-            Shopgoodwill.API_ROOT + "/SaveSearches/GetSaveSearches"
-        )
-        return res.json()["data"]
+        res = self.shopgoodwill_session.post(Shopgoodwill.API_ROOT + '/SaveSearches/GetSaveSearches')
+        return res.json()['data']
 
     @requires_auth
-    def get_favorites(self, favorite_type: str = "open") -> dict[int, dict]:
+    def get_favorites(self, favorite_type: str = 'open') -> dict[int, dict]:
         """
         Returns the logged in user's favorites, and all of their (visible)
         attributes.
@@ -265,11 +251,11 @@ class Shopgoodwill:
         # we just don't care about closed listings
 
         res = self.shopgoodwill_session.post(
-            Shopgoodwill.API_ROOT + "/Favorite/GetAllFavoriteItemsByType",
-            params={"Type": favorite_type},
+            Shopgoodwill.API_ROOT + '/Favorite/GetAllFavoriteItemsByType',
+            params={'Type': favorite_type},
             json={},
         )
-        favorites = res.json()["data"]
+        favorites = res.json()['data']
         parsed_favorites = dict()
 
         # It'd be nice if their formatting was consistent
@@ -277,7 +263,7 @@ class Shopgoodwill:
             favorites = list()
 
         for favorite in favorites:
-            parsed_favorites[int(favorite["itemId"])] = favorite
+            parsed_favorites[int(favorite['itemId'])] = favorite
 
         return parsed_favorites
 
@@ -296,8 +282,8 @@ class Shopgoodwill:
         """
 
         self.shopgoodwill_session.get(
-            f"{Shopgoodwill.API_ROOT}/Favorite/AddToFavorite",
-            params={"itemId": item_id},
+            f'{Shopgoodwill.API_ROOT}/Favorite/AddToFavorite',
+            params={'itemId': item_id},
         )
         if note:
             self.add_favorite_note(item_id, note)
@@ -324,27 +310,23 @@ class Shopgoodwill:
         if item_id not in favorites:
             raise Exception(f"Item {item_id} not in user's favorites!")
 
-        watchlist_id = favorites[item_id]["watchlistId"]
+        watchlist_id = favorites[item_id]['watchlistId']
 
         # note that the webapp passes a "date" value, but it is not necessary
         self.shopgoodwill_session.post(
-            f"{Shopgoodwill.API_ROOT}/Favorite/Save",
-            json={"notes": note, "watchlistId": watchlist_id},
+            f'{Shopgoodwill.API_ROOT}/Favorite/Save',
+            json={'notes': note, 'watchlistId': watchlist_id},
         )
 
     @requires_auth
-    def place_bid(
-        self, item_id: int, bid_amount: float, seller_id: int, quantity: int = 1
-    ):
+    def place_bid(self, item_id: int, bid_amount: float, seller_id: int, quantity: int = 1):
         bid_json = {
-            "itemId": item_id,
-            "bidAmount": "%.2f" % bid_amount,
-            "sellerId": seller_id,
-            "quantity": quantity,
+            'itemId': item_id,
+            'bidAmount': '%.2f' % bid_amount,
+            'sellerId': seller_id,
+            'quantity': quantity,
         }
-        _bid_res = self.shopgoodwill_session.post(
-            f"{Shopgoodwill.API_ROOT}/ItemBid/PlaceBid", json=bid_json
-        ).json()
+        _bid_res = self.shopgoodwill_session.post(f'{Shopgoodwill.API_ROOT}/ItemBid/PlaceBid', json=bid_json).json()
 
         """
         Possible bid responses:
@@ -360,7 +342,7 @@ class Shopgoodwill:
             message: "Auction has closed. Auction ended as of 12/20/2022 7:01:00 PM PT"
             currentPrice: null
             status: false
-        """
+        """  # noqa: E501
 
         # TODO should we return the outcome?
         return
@@ -377,7 +359,7 @@ class Shopgoodwill:
         """
 
         return self.shopgoodwill_session.get(
-            f"{Shopgoodwill.API_ROOT}/itemDetail/GetItemDetailModelByItemId/{item_id}"
+            f'{Shopgoodwill.API_ROOT}/itemDetail/GetItemDetailModelByItemId/{item_id}'
         ).json()
 
     def get_item_bid_info(self, item_id: int) -> dict:
@@ -399,12 +381,10 @@ class Shopgoodwill:
         """
 
         return self.shopgoodwill_session.get(
-            f"{Shopgoodwill.API_ROOT}/itemBid/ShowBidModal", params={"itemId": item_id}
+            f'{Shopgoodwill.API_ROOT}/itemBid/ShowBidModal', params={'itemId': item_id}
         ).json()
 
-    def get_query_results(
-        self, query_json: dict, page_size: int | None = 40
-    ) -> list[dict]:
+    def get_query_results(self, query_json: dict, page_size: int | None = 40) -> list[dict]:
         """
         Given a valid query JSON, return the results of the query
 
@@ -416,36 +396,33 @@ class Shopgoodwill:
 
         tmp_query_json = deepcopy(query_json)
 
-        tmp_query_json["page"] = 1
-        tmp_query_json["pageSize"] = page_size
+        tmp_query_json['page'] = 1
+        tmp_query_json['pageSize'] = page_size
         total_listings = list()
 
-        tmp_query_json["searchText"] = tmp_query_json["searchText"].replace('"', "")
+        tmp_query_json['searchText'] = tmp_query_json['searchText'].replace('"', '')
 
         while True:
             query_res = self.shopgoodwill_session.post(
-                Shopgoodwill.API_ROOT + "/Search/Itemlisting", json=tmp_query_json
+                Shopgoodwill.API_ROOT + '/Search/Itemlisting', json=tmp_query_json
             )
-            page_listings = query_res.json()["searchResults"]["items"]
+            page_listings = query_res.json()['searchResults']['items']
 
             # err check
             # see https://github.com/scottmconway/shopgoodwill-scripts/issues/12
-            if query_res.json().get("categorylistModel", None) is None:
-                raise Exception("Error response from query endpoint")
+            if query_res.json().get('categorylistModel', None) is None:
+                raise Exception('Error response from query endpoint')
 
             # break if this page is empty
             if not page_listings:
                 return total_listings
 
             else:
-                tmp_query_json["page"] += 1
+                tmp_query_json['page'] += 1
                 total_listings += page_listings
 
                 # break if we've seen all that we expect to see
-                if (
-                    len(total_listings)
-                    == query_res.json()["searchResults"]["itemCount"]
-                ):
+                if len(total_listings) == query_res.json()['searchResults']['itemCount']:
                     return total_listings
 
     def get_item_shipping_estimate(self, item_id: int, zip_code: str) -> float | None:
@@ -463,14 +440,14 @@ class Shopgoodwill:
         """
 
         resp = self.shopgoodwill_session.post(
-            f"{Shopgoodwill.API_ROOT}/itemDetail/CalculateShipping",
+            f'{Shopgoodwill.API_ROOT}/itemDetail/CalculateShipping',
             json={
-                "itemId": item_id,
-                "zipCode": zip_code,
-                "country": "US",
-                "province": None,
-                "quantity": 1,
-                "clientIP": "0.0.0.0",
+                'itemId': item_id,
+                'zipCode': zip_code,
+                'country': 'US',
+                'province': None,
+                'quantity': 1,
+                'clientIP': '0.0.0.0',
             },
         )
 
