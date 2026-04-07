@@ -3,7 +3,7 @@ import datetime
 import re
 import urllib.parse
 from copy import deepcopy
-from typing import Dict, List, Optional
+from typing import Callable
 from zoneinfo import ZoneInfo
 
 import requests
@@ -65,7 +65,7 @@ class Shopgoodwill:
         # Maybe try getting another predefined page that requires login
         # eg. profile info
 
-    def __init__(self, auth_info: Optional[Dict] = None):
+    def __init__(self, auth_info: dict | None = None):
         self.shopgoodwill_session = requests.Session()
         self.shopgoodwill_session.cookies = IgnoreBuyerApiCookieJar()
 
@@ -164,7 +164,7 @@ class Shopgoodwill:
         self.shopgoodwill_session.headers["Authorization"] = f"Bearer {access_token}"
 
         try:
-            res = self.shopgoodwill_session.post(
+            _res = self.shopgoodwill_session.post(
                 Shopgoodwill.API_ROOT + "/SaveSearches/GetSaveSearches"
             )
 
@@ -184,7 +184,7 @@ class Shopgoodwill:
         del self.shopgoodwill_session.headers["Authorization"]
         return True
 
-    def requires_auth(func):
+    def requires_auth(func: Callable | None = None):  # type: ignore
         """
         Simple decorator to raise an exception if an endpoint requiring login
         is called without valid auth
@@ -193,7 +193,8 @@ class Shopgoodwill:
         def inner(self, *args, **kwargs):
             if not self.logged_in:
                 raise Exception("This function requires login to Shopgoodwill")
-
+            if func is None:
+                raise Exception("Bruh")
             return func(self, *args, **kwargs)
 
         return inner
@@ -241,7 +242,7 @@ class Shopgoodwill:
         return res.json()["data"]
 
     @requires_auth
-    def get_favorites(self, favorite_type: str = "open") -> Dict[int, Dict]:
+    def get_favorites(self, favorite_type: str = "open") -> dict[int, dict]:
         """
         Returns the logged in user's favorites, and all of their (visible)
         attributes.
@@ -281,7 +282,7 @@ class Shopgoodwill:
         return parsed_favorites
 
     @requires_auth
-    def add_favorite(self, item_id: int, note: Optional[str] = None) -> None:
+    def add_favorite(self, item_id: int, note: str | None = None) -> None:
         """
         Given an Item ID, attampt to add it to the logged in user's favorites,
         optionally with a note.
@@ -341,7 +342,7 @@ class Shopgoodwill:
             "sellerId": seller_id,
             "quantity": quantity,
         }
-        bid_res = self.shopgoodwill_session.post(
+        _bid_res = self.shopgoodwill_session.post(
             f"{Shopgoodwill.API_ROOT}/ItemBid/PlaceBid", json=bid_json
         ).json()
 
@@ -364,7 +365,7 @@ class Shopgoodwill:
         # TODO should we return the outcome?
         return
 
-    def get_item_info(self, item_id: int) -> Dict:
+    def get_item_info(self, item_id: int) -> dict:
         """
         Simple function to get all info for a given item.
         Returns the contents shown on /item/$ITEM_ID pages on the SGW site.
@@ -372,14 +373,14 @@ class Shopgoodwill:
         :param item_id: A valid item ID
         :type item_id: int
         :return: A dict containing all item attributes from SGW
-        :rtype: Dict
+        :rtype: dict
         """
 
         return self.shopgoodwill_session.get(
             f"{Shopgoodwill.API_ROOT}/itemDetail/GetItemDetailModelByItemId/{item_id}"
         ).json()
 
-    def get_item_bid_info(self, item_id: int) -> Dict:
+    def get_item_bid_info(self, item_id: int) -> dict:
         """
         Simple function to get all info
         provided for an item by the "quick bid" action.
@@ -394,7 +395,7 @@ class Shopgoodwill:
         :param item_id: A valid item ID
         :type item_id: int
         :return: A dict containing some item attributes from SGW
-        :rtype: Dict
+        :rtype: dict
         """
 
         return self.shopgoodwill_session.get(
@@ -402,15 +403,15 @@ class Shopgoodwill:
         ).json()
 
     def get_query_results(
-        self, query_json: Dict, page_size: Optional[int] = 40
-    ) -> List[Dict]:
+        self, query_json: dict, page_size: int | None = 40
+    ) -> list[dict]:
         """
         Given a valid query JSON, return the results of the query
 
         :param query_json: A valid Shopgoodwill query JSON
-        :type query_json: Dict
+        :type query_json: dict
         :return: A list of query results across all valid result pages
-        :rtype: List[Dict]
+        :rtype: list[dict]
         """
 
         tmp_query_json = deepcopy(query_json)
@@ -423,13 +424,13 @@ class Shopgoodwill:
 
         while True:
             query_res = self.shopgoodwill_session.post(
-                Shopgoodwill.API_ROOT + "/Search/ItemListing", json=tmp_query_json
+                Shopgoodwill.API_ROOT + "/Search/Itemlisting", json=tmp_query_json
             )
             page_listings = query_res.json()["searchResults"]["items"]
 
             # err check
             # see https://github.com/scottmconway/shopgoodwill-scripts/issues/12
-            if query_res.json().get("categoryListModel", None) is None:
+            if query_res.json().get("categorylistModel", None) is None:
                 raise Exception("Error response from query endpoint")
 
             # break if this page is empty
@@ -447,9 +448,7 @@ class Shopgoodwill:
                 ):
                     return total_listings
 
-    def get_item_shipping_estimate(
-        self, item_id: int, zip_code: str
-    ) -> Optional[float]:
+    def get_item_shipping_estimate(self, item_id: int, zip_code: str) -> float | None:
         """
         Given an item id and a zip code, returns the extracted estimated
         shipping cost result.
@@ -483,7 +482,7 @@ class Shopgoodwill:
         return shipping_est_price
 
     # TODO maybe if there's any internal consistency
-    def paginate_request(self, prepared_request: PreparedRequest) -> List[Dict]:
+    def paginate_request(self, prepared_request: PreparedRequest) -> list[dict] | None:
         """
         Given a prepared request, paginate by modifying the body's "page"
         parameter until we hit the last page

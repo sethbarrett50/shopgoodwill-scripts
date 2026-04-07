@@ -35,7 +35,7 @@ USELESS_ATTRS = [
 SAVED_SEARCH_TO_QUERY_PARAMS = {
     "categoryLevelNum": "categoryLevelNo",
     "isWedding": "isWeddingCategory",
-    "categoryLevelNum": "categoryLevel",
+    # "categoryLevelNum": "categoryLevel",
     "selectedCategoryIds": "catIds",
 }
 
