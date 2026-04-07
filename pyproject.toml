@@ -1,7 +1,17 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]   
+
 [project]
 name = "shopgoodwill-scripts"
 version = "0.1.0"
-description = "Add your description here"
+description = "Basic scripts for shopgoodwill"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
@@ -11,4 +21,9 @@ dependencies = [
     "python-daemon>=3.1.2",
     "requests>=2.33.1",
     "tzdata>=2026.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
 ]
