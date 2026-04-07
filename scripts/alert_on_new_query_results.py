@@ -7,75 +7,75 @@ import logging
 import logging.config
 import os
 import re
+
 from typing import Dict, List
 from zoneinfo import ZoneInfo
 
 import parsedatetime
-
 import shopgoodwill
 
 RELEVANT_LISTING_KEYS = [
-    "buyNowPrice",
-    "discountedBuyNowPrice",
-    "endTime",
-    "minimumBid",
-    "remainingTime",
-    "title",
+    'buyNowPrice',
+    'discountedBuyNowPrice',
+    'endTime',
+    'minimumBid',
+    'remainingTime',
+    'title',
 ]
 
 USELESS_ATTRS = [
-    "price",
-    "sort",
-    "categoryName",
-    "sellerName",
-    "layout",
-    "searchOption",
+    'price',
+    'sort',
+    'categoryName',
+    'sellerName',
+    'layout',
+    'searchOption',
 ]
 
 SAVED_SEARCH_TO_QUERY_PARAMS = {
-    "categoryLevelNum": "categoryLevelNo",
-    "isWedding": "isWeddingCategory",
-    "categoryLevelNum": "categoryLevel",
-    "selectedCategoryIds": "catIds",
+    'categoryLevelNum': 'categoryLevelNo',
+    'isWedding': 'isWeddingCategory',
+    # "categoryLevelNum": "categoryLevel",
+    'selectedCategoryIds': 'catIds',
 }
 
 SAVED_QUERY_DEFAULTS = {
-    "isSize": False,
-    "isWeddingCatagory": "false",
-    "isMultipleCategoryIds": False,
-    "isFromHeaderMenuTab": False,
-    "layout": "",
-    "searchText": "",
-    "selectedGroup": "",
-    "selectedCategoryIds": "",
-    "selectedSellerIds": "",
-    "lowPrice": "0",
-    "highPrice": "999999",
-    "searchBuyNowOnly": "",
-    "searchPickupOnly": "false",
-    "searchNoPickupOnly": "false",
-    "searchOneCentShippingOnly": "false",
-    "searchDescriptions": "false",
-    "searchClosedAuctions": "false",
-    "closedAuctionEndingDate": "1/1/1",
-    "closedAuctionDaysBack": "7",
-    "searchCanadaShipping": "false",
-    "searchInternationalShippingOnly": "false",
-    "sortColumn": "1",
-    "page": "1",
-    "pageSize": "40",
-    "sortDescending": "false",
-    "savedSearchId": 0,
-    "useBuyerPrefs": "true",
-    "searchUSOnlyShipping": "false",
-    "categoryLevelNo": "1",
-    "categoryLevel": 1,
-    "categoryId": 0,
-    "partNumber": "",
-    "catIds": "",
+    'isSize': False,
+    'isWeddingCatagory': 'false',
+    'isMultipleCategoryIds': False,
+    'isFromHeaderMenuTab': False,
+    'layout': '',
+    'searchText': '',
+    'selectedGroup': '',
+    'selectedCategoryIds': '',
+    'selectedSellerIds': '',
+    'lowPrice': '0',
+    'highPrice': '999999',
+    'searchBuyNowOnly': '',
+    'searchPickupOnly': 'false',
+    'searchNoPickupOnly': 'false',
+    'searchOneCentShippingOnly': 'false',
+    'searchDescriptions': 'false',
+    'searchClosedAuctions': 'false',
+    'closedAuctionEndingDate': '1/1/1',
+    'closedAuctionDaysBack': '7',
+    'searchCanadaShipping': 'false',
+    'searchInternationalShippingOnly': 'false',
+    'sortColumn': '1',
+    'page': '1',
+    'pageSize': '40',
+    'sortDescending': 'false',
+    'savedSearchId': 0,
+    'useBuyerPrefs': 'true',
+    'searchUSOnlyShipping': 'false',
+    'categoryLevelNo': '1',
+    'categoryLevel': 1,
+    'categoryId': 0,
+    'partNumber': '',
+    'catIds': '',
 }
 
-QUOTE_REGEX = re.compile(r"[\'\"].+?[\'\"]")
+QUOTE_REGEX = re.compile(r'[\'\"].+?[\'\"]')
 
 
 def set_query_defaults(saved_query: Dict) -> Dict:
@@ -109,9 +109,9 @@ def saved_search_to_query(saved_search: Dict) -> Dict:
         del saved_search[old_name]
 
     # TODO how the hell does "categoryId work?"
-    cat_ids = saved_search["catIds"].split(",")
+    cat_ids = saved_search['catIds'].split(',')
     max_cat_id = max([int(i) for i in cat_ids])
-    saved_search["selectedCategoryIds"] = max_cat_id
+    saved_search['selectedCategoryIds'] = max_cat_id
 
     for k, v in saved_search.items():
         saved_search[k] = str(v).lower()  # Thanks SGW
@@ -127,9 +127,7 @@ def saved_search_to_query(saved_search: Dict) -> Dict:
     return saved_search
 
 
-def filter_listings(
-    query_json: Dict, listings: List[Dict], query_name: str, filters: Dict
-) -> List[Dict]:
+def filter_listings(query_json: Dict, listings: List[Dict], query_name: str, filters: Dict) -> List[Dict]:
     """
     Given a list of query results, filter the query results
     according to attributes in the query JSON.
@@ -160,44 +158,39 @@ def filter_listings(
 
     # TODO note that quotes can start or end with ' or " (or a mix therein!)
     # There's probably a better way to do this, but I am not privy to it
-    search_string = query_json["searchText"].lower()
+    search_string = query_json['searchText'].lower()
     quotes = QUOTE_REGEX.findall(search_string)
 
     # get time filter
-    time_remaining = filters.get(query_name, dict()).get(
-        "time_remaining"
-    ) or filters.get("time_remaining")
+    time_remaining = filters.get(query_name, dict()).get('time_remaining') or filters.get('time_remaining')
 
     for listing in listings:
         failure = False
 
         if time_remaining:
             end_time = (
-                datetime.datetime.fromisoformat(listing["endTime"])
-                .replace(tzinfo=ZoneInfo("America/Los_Angeles"))
-                .astimezone(ZoneInfo("Etc/UTC"))
+                datetime.datetime
+                .fromisoformat(listing['endTime'])
+                .replace(tzinfo=ZoneInfo('America/Los_Angeles'))
+                .astimezone(ZoneInfo('Etc/UTC'))
             )
-            now = datetime.datetime.now().astimezone(ZoneInfo("Etc/UTC"))
+            now = datetime.datetime.now().astimezone(ZoneInfo('Etc/UTC'))
             item_time_remaining = end_time - now
             cal = parsedatetime.Calendar()
             filter_time_remaining = (
-                cal.parseDT(time_remaining[1:], sourceTime=datetime.datetime.min)[0]
-                - datetime.datetime.min
+                cal.parseDT(time_remaining[1:], sourceTime=datetime.datetime.min)[0] - datetime.datetime.min
             )
             # fail if time left on auction is more than time_remaing or ended and checking for less than
-            if time_remaining[0] == "<":
-                if (
-                    item_time_remaining >= filter_time_remaining
-                    or item_time_remaining.seconds < 0
-                ):
+            if time_remaining[0] == '<':
+                if item_time_remaining >= filter_time_remaining or item_time_remaining.seconds < 0:
                     failure = True
             # fail if time left on auction is less than time_remaing and checking for more than
-            elif time_remaining[0] == ">":
+            elif time_remaining[0] == '>':
                 if item_time_remaining <= filter_time_remaining:
                     failure = True
 
         for quote in quotes:
-            if quote[1:-1] not in listing["title"].lower():
+            if quote[1:-1] not in listing['title'].lower():
                 failure = True
                 break
 
@@ -209,71 +202,66 @@ def filter_listings(
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('-q', '--query-name', type=str, help='The name of the query to execute')
     parser.add_argument(
-        "-q", "--query-name", type=str, help="The name of the query to execute"
+        '--all',
+        action='store_true',
+        help='If set, execute all queries for the configured data source',
     )
     parser.add_argument(
-        "--all",
-        action="store_true",
-        help="If set, execute all queries for the configured data source",
+        '-l',
+        '--list-queries',
+        action='store_true',
+        help='If set, list all queries that can be executed for the current data source and exit',
     )
     parser.add_argument(
-        "-l",
-        "--list-queries",
-        action="store_true",
-        help="If set, list all queries that can be executed "
-        "for the current data source and exit",
+        '-d',
+        '--data-source',
+        choices=['local', 'saved_searches'],
+        default='local',
+        help='Data source for this query. '
+        'If `saved_searches` is selected, '
+        'Shopgoodwill credentials are required in the configuration file',
     )
     parser.add_argument(
-        "-d",
-        "--data-source",
-        choices=["local", "saved_searches"],
-        default="local",
-        help="Data source for this query. "
-        "If `saved_searches` is selected, "
-        "Shopgoodwill credentials are required in the configuration file",
+        '--markdown',
+        action='store_true',
+        help='If set, log URLs in markdown format (for gotify)',
     )
     parser.add_argument(
-        "--markdown",
-        action="store_true",
-        help="If set, log URLs in markdown format (for gotify)",
-    )
-    parser.add_argument(
-        "--config",
+        '--config',
         type=str,
-        default="config.json",
-        help="Path to config file - defaults to ./config.json",
+        default='config.json',
+        help='Path to config file - defaults to ./config.json',
     )
     args = parser.parse_args()
 
-    with open(args.config, "r") as f:
+    with open(args.config, 'r') as f:
         config = json.load(f)
 
     # logging setup
-    logger = logging.getLogger("shopgoodwill_alert_on_new_query_results")
-    logging_conf = config.get("logging", dict())
+    logger = logging.getLogger('shopgoodwill_alert_on_new_query_results')
+    logging_conf = config.get('logging', dict())
 
     # check if we're using logging.config.dictConfig or not
     #
     # load entire logging config from dictConfig format
-    if logging_conf.get("version", 0) >= 1:
+    if logging_conf.get('version', 0) >= 1:
         logging.config.dictConfig(logging_conf)
 
     # legacy logging config format
     else:
-        logger.setLevel(logging_conf.get("log_level", logging.INFO))
-        if "gotify" in logging_conf:
+        logger.setLevel(logging_conf.get('log_level', logging.INFO))
+        if 'gotify' in logging_conf:
             from gotify_handler import GotifyHandler
 
-            logger.addHandler(GotifyHandler(**logging_conf["gotify"]))
+            logger.addHandler(GotifyHandler(**logging_conf['gotify']))
 
     # data source setup
-    if args.data_source == "saved_searches":
-        auth_info = config.get("auth_info", None)
+    if args.data_source == 'saved_searches':
+        auth_info = config.get('auth_info', None)
         if auth_info is None:
-            raise Exception(
-                "SGW authenication required for `saved_searches` data source"
-            )
+            raise Exception('SGW authenication required for `saved_searches` data source')
 
         sgw = shopgoodwill.Shopgoodwill(auth_info)
 
@@ -285,37 +273,29 @@ def main():
             saved_queries = dict()
 
         else:
-            saved_queries = {
-                str(i["savedSearchId"]): saved_search_to_query(i)
-                for i in saved_searches
-            }
+            saved_queries = {str(i['savedSearchId']): saved_search_to_query(i) for i in saved_searches}
 
-        list_query_string = "Saved queries: %s" % (
-            ", ".join(sorted(saved_queries.keys()))
-        )
+        list_query_string = 'Saved queries: %s' % (', '.join(sorted(saved_queries.keys())))
 
     else:
         sgw = shopgoodwill.Shopgoodwill()
-        saved_queries = config["saved_queries"]
-        list_query_string = "Saved queries: %s" % (", ".join(saved_queries.keys()))
+        saved_queries = config['saved_queries']
+        list_query_string = 'Saved queries: %s' % (', '.join(saved_queries.keys()))
 
     if args.list_queries:
         print(list_query_string)
         return
 
     # init seen listings
-    seen_listings_filename = config.get("seen_listings_filename", "seen_listings.json")
+    seen_listings_filename = config.get('seen_listings_filename', 'seen_listings.json')
     if os.path.isfile(seen_listings_filename):
-        with open(seen_listings_filename, "r") as f:
+        with open(seen_listings_filename, 'r') as f:
             seen_listings = json.load(f)
 
         # if the user has an old seen_listings file,
         # delete all entries (and let them know about it)
         if not isinstance(seen_listings, dict):
-            logger.warning(
-                "Deprecated seen_listings file format detected - "
-                "clearing existing seen_listings"
-            )
+            logger.warning('Deprecated seen_listings file format detected - clearing existing seen_listings')
             seen_listings = dict()
     else:
         seen_listings = dict()
@@ -330,7 +310,7 @@ def main():
         queries_to_run = {args.query_name: saved_queries[args.query_name]}
 
     # get general and item specific additional filters
-    filters = config.get("filters", dict())
+    filters = config.get('filters', dict())
 
     for query_name, query_json in queries_to_run.items():
         query_json = set_query_defaults(query_json)  # expand query before submitting it
@@ -341,7 +321,7 @@ def main():
             alert_queue = list()
 
             for listing in total_listings:
-                item_id = str(listing["itemId"])
+                item_id = str(listing['itemId'])
 
                 # skip seen listings
                 if item_id in seen_listings:
@@ -350,50 +330,46 @@ def main():
                 relevant_attrs = dict()
                 for key in RELEVANT_LISTING_KEYS:
                     relevant_attrs[key] = str(listing[key])
-                    relevant_attrs["url"] = f"https://shopgoodwill.com/item/{item_id}"
+                    relevant_attrs['url'] = f'https://shopgoodwill.com/item/{item_id}'
 
-                seen_listings[item_id] = sgw.convert_timestamp_to_datetime(
-                    listing["endTime"]
-                ).isoformat()
+                seen_listings[item_id] = sgw.convert_timestamp_to_datetime(listing['endTime']).isoformat()
                 alert_queue.append(relevant_attrs)
 
             if alert_queue:
                 formatted_msg_lines = [
                     f'{len(alert_queue)} new results for shopgoodwill query "{query_name}"',
-                    "",
+                    '',
                 ]
                 for alert in alert_queue:
                     if args.markdown:
                         alert_lines = [
-                            f"[{alert['title']}]({alert['url']}):",
-                            "",
-                            alert["minimumBid"],
-                            "",
-                            alert["endTime"],
-                            "",
+                            f'[{alert["title"]}]({alert["url"]}):',
+                            '',
+                            alert['minimumBid'],
+                            '',
+                            alert['endTime'],
+                            '',
                         ]
 
                     else:
                         alert_lines = [
-                            alert["title"] + ":",
-                            alert["minimumBid"],
-                            alert["endTime"],
-                            alert["url"],
-                            "",
+                            alert['title'] + ':',
+                            alert['minimumBid'],
+                            alert['endTime'],
+                            alert['url'],
+                            '',
                         ]
                     formatted_msg_lines.extend(alert_lines)
 
-                logger.info("\n".join(formatted_msg_lines))
+                logger.info('\n'.join(formatted_msg_lines))
 
         except BaseException as be:
-            logger.error(
-                f"Exception for query {query_name} - {type(be).__name__} - {be}"
-            )
+            logger.error(f'Exception for query {query_name} - {type(be).__name__} - {be}')
 
     # save new results of seen listings
 
     # but before we do, trim the stale entries
-    now = datetime.datetime.now().astimezone(ZoneInfo("Etc/UTC"))
+    now = datetime.datetime.now().astimezone(ZoneInfo('Etc/UTC'))
     keys_to_drop = list()
 
     for item_id, end_time in seen_listings.items():
@@ -403,9 +379,9 @@ def main():
     for item_id in keys_to_drop:
         del seen_listings[item_id]
 
-    with open(seen_listings_filename, "w") as f:
+    with open(seen_listings_filename, 'w') as f:
         json.dump(seen_listings, f)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
