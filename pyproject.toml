@@ -1,0 +1,14 @@
+[project]
+name = "shopgoodwill-scripts"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "gotify-handler>=1.0.3",
+    "parsedatetime>=2.6",
+    "pycryptodomex>=3.23.0",
+    "python-daemon>=3.1.2",
+    "requests>=2.33.1",
+    "tzdata>=2026.1",
+]
